@@ -1,12 +1,92 @@
-import io
 import json
-from contextlib import redirect_stdout
+import os
+import subprocess
+import tempfile
 
-import numpy as np
-import pandas as pd
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
+
+NSJAIL_PATH = "/usr/bin/nsjail"
+PYTHON_PATH = "/usr/local/bin/python3"
+NSJAIL_CONFIG_PATH = "/app/nsjail.config"
+SCRIPTS_DIR = "/tmp/scripts"
+
+
+def execute_script_in_jail(script):
+    """Execute a Python script in an nsjail environment."""
+    os.makedirs(SCRIPTS_DIR, exist_ok=True)
+
+    with tempfile.NamedTemporaryFile(
+        suffix=".py", delete=False, dir=SCRIPTS_DIR
+    ) as tmp:
+        tmp_path = tmp.name
+        wrapper_script = f"""
+import io
+import json
+import sys
+from contextlib import redirect_stdout
+
+# The user script
+{script}
+
+# Execute the main function and capture stdout
+stdout_capture = io.StringIO()
+try:
+    with redirect_stdout(stdout_capture):
+        result = main()
+    # Validate JSON serialization
+    json.dumps(result)
+    print(json.dumps({{"result": result, 
+                     "stdout": stdout_capture.getvalue()}}))
+    sys.exit(0)
+except Exception as e:
+    error_msg = str(e)
+    print(json.dumps({{"error": error_msg, 
+                     "stdout": stdout_capture.getvalue()}}))
+    sys.exit(1)
+"""
+        tmp.write(wrapper_script.encode("utf-8"))
+
+    try:
+        cmd = [
+            NSJAIL_PATH,
+            "--config",
+            NSJAIL_CONFIG_PATH,
+            "--",
+            PYTHON_PATH,
+            tmp_path,
+        ]
+
+        process = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        os.unlink(tmp_path)
+
+        try:
+            output = process.stdout.strip()
+            if output:
+                return json.loads(output)
+            else:
+                stderr = process.stderr.strip()
+                return {"error": f"Script execution failed. Error: {stderr}"}
+        except json.JSONDecodeError:
+            return {
+                "error": "Failed to parse script output as JSON",
+                "stdout": process.stdout,
+                "stderr": process.stderr,
+            }
+
+    except subprocess.TimeoutExpired:
+        os.unlink(tmp_path)
+        return {"error": "Script execution timed out"}
+    except Exception as e:
+        os.unlink(tmp_path)
+        return {"error": f"Error executing script: {str(e)}"}
 
 
 @app.route("/execute", methods=["POST"])
@@ -18,57 +98,15 @@ def execute_script():
     script = data.get("script")
 
     if not script or not isinstance(script, str):
-        return jsonify({"error": "Missing or invalid 'script' key in JSON body"}), 400
+        err_msg = "Missing or invalid 'script' key in JSON body"
+        return jsonify({"error": err_msg}), 400
 
-    namespace = {
-        "__builtins__": __builtins__,
-        "np": np,
-        "numpy": np,
-        "pd": pd,
-        "pandas": pd,
-    }
+    result = execute_script_in_jail(script)
 
-    stdout_capture = io.StringIO()
+    if "error" in result:
+        return jsonify({"error": result["error"]}), 400
 
-    try:
-        compiled_code = compile(script, "<string>", "exec")
-
-        with redirect_stdout(stdout_capture):
-            exec(compiled_code, namespace)
-
-        if "main" not in namespace or not callable(namespace["main"]):
-            return jsonify({"error": "Script must contain a main() function"}), 400
-
-        with redirect_stdout(stdout_capture):
-            main_result = namespace["main"]()
-
-        try:
-            json.dumps(main_result)
-        except (TypeError, ValueError):
-            return jsonify(
-                {
-                    "error": "main() function must return a JSON-serializable value",
-                    "stdout": stdout_capture.getvalue(),
-                }
-            ), 400
-
-        return jsonify({"result": main_result, "stdout": stdout_capture.getvalue()})
-
-    except SyntaxError as e:
-        return jsonify(
-            {"error": f"Syntax error: {str(e)}", "stdout": stdout_capture.getvalue()}
-        ), 400
-    except Exception as e:
-        import traceback
-
-        error_details = traceback.format_exc()
-        return jsonify(
-            {
-                "error": f"Script execution failed: {str(e)}",
-                "details": error_details,
-                "stdout": stdout_capture.getvalue(),
-            }
-        ), 400
+    return jsonify(result)
 
 
 if __name__ == "__main__":
