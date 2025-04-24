@@ -27,10 +27,6 @@ COPY . .
 
 EXPOSE 8080
 
-ENV FLASK_APP=app.py 
-ENV FLASK_RUN_HOST=0.0.0.0 
-ENV FLASK_RUN_PORT=8080 
-ENV FLASK_ENV=production
-ENV FLASK_DEBUG=0
+ENV PORT=8080
 
-CMD ["flask", "run"]
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app

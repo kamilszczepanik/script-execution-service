@@ -2,9 +2,9 @@
 
 A Flask-based API service to execute arbitrary Python scripts safely using nsjail.
 
-## Local Development
+## Development
 
-1.  **Build & run the Docker image:**
+  **Build & run the Docker image (local mode):**
     ```bash
     docker build -t safe-script-runner . && docker run -p 8080:8080 safe-script-runner
     ```
@@ -13,7 +13,6 @@ A Flask-based API service to execute arbitrary Python scripts safely using nsjai
     ```bash
     docker build -t safe-script-runner . && docker run -d -p 8080:8080 --name script-executor safe-script-runner
     ```
-
 
 ## Testing the Improvements
 
@@ -91,15 +90,77 @@ A Flask-based API service to execute arbitrary Python scripts safely using nsjai
         http://localhost:8080/execute
    ```
 
+## Live Service
+
+The service is deployed at: https://script-execution-service-94204096560.us-west2.run.app/
+
+You can test it using the following curl commands:
+
+1. **Basic test (hello world):**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    return {\"message\": \"Hello from Cloud Run!\"}"}' \
+        https://script-execution-service-94204096560.us-west2.run.app/execute
+   ```
+
+2. **Using numpy for calculations:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import numpy as np\n    data = np.array([1, 2, 3, 4, 5])\n    return {\"mean\": float(np.mean(data)), \"sum\": int(np.sum(data)), \"std\": float(np.std(data))}"}' \
+        https://script-execution-service-94204096560.us-west2.run.app/execute
+   ```
+
+3. **Working with pandas dataframes:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import pandas as pd\n    df = pd.DataFrame({\"A\": [1, 2, 3], \"B\": [4, 5, 6]})\n    return {\"description\": df.describe().to_dict(), \"column_sum\": df.sum().to_dict()}"}' \
+        https://script-execution-service-94204096560.us-west2.run.app/execute
+   ```
+
+4. **Using stdout and returning results:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    print(\"Processing data...\")\n    data = [1, 2, 3, 4, 5]\n    print(f\"Sum: {sum(data)}\")\n    return {\"result\": sum(data), \"length\": len(data)}"}' \
+        https://script-execution-service-94204096560.us-west2.run.app/execute
+   ```
+
+5. **Error handling example:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    try:\n        x = 1 / 0\n    except Exception as e:\n        print(f\"Caught error: {e}\")\n        return {\"error_handled\": str(e)}\n    return {\"result\": \"This will not execute\"}"}' \
+        https://script-execution-service-94204096560.us-west2.run.app/execute
+   ```
+
 ## Cloud Run Deployment
 
-*(Instructions to be added later)*
+1. **Install Google Cloud SDK** (if you don't have it already):
+   ```bash
+   curl https://sdk.cloud.google.com | bash
+   gcloud init
+   ```
+
+2. **Build and deploy to Cloud Run**:
+   ```bash
+   # Set your Google Cloud project ID
+   export PROJECT_ID=$(gcloud config get-value project)
+   
+   # Build and push the container
+   gcloud builds submit --tag gcr.io/$PROJECT_ID/script-execution-service
+   
+   # Deploy to Cloud Run
+   gcloud run deploy script-execution-service \
+     --image gcr.io/$PROJECT_ID/script-execution-service \
+     --platform managed \
+     --allow-unauthenticated \
+     --region us-central1 \
+     --memory 512Mi
+   ```
+
+## Security Considerations
+
+- The service is configured to allow unauthenticated access. For production, consider adding authentication.
 
 ## TODO
 
 - Implement actual script execution using nsjail.
 - Configure nsjail for security.
-- Handle script output (stdout, return value).
-- Add pandas/numpy dependencies.
-- Deploy to Cloud Run.
-- Add Cloud Run URL and updated curl command here. 
