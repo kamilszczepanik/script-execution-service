@@ -4,22 +4,25 @@ A Flask-based API service to execute arbitrary Python scripts safely using nsjai
 
 ## Local Development
 
-1.  **Build the Docker image:**
+1.  **Build & run the Docker image:**
     ```bash
-    docker build -t safe-script-runner .
+    docker build -t safe-script-runner . ; docker run -p 8080:8080 safe-script-runner
     ```
 
-2.  **Run the Docker container:**
-    ```bash
-    docker run -p 8080:8080 safe-script-runner
-    ```
-****
-3.  **Send a request (example):**
+2.  **Send a request (example):**
     ```bash
     curl -X POST -H "Content-Type: application/json" \
          -d '{"script": "def main():\n    return {\"message\": \"Hello from script!\"}"}' \
          http://localhost:8080/execute
     ```
+    --- or ---
+    ```bash
+    curl -X POST -H "Content-Type: application/json" \
+     -d '{"script": "def main():\n    print(\"First line\")\n    print(\"Second line\")\n    return {\"message\": \"Hello from script!\"}"}' \
+     http://localhost:8080/execute
+    ```
+
+    
 
 ## Cloud Run Deployment
 
