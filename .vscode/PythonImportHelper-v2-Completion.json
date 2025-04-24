@@ -1,0 +1,88 @@
+[
+    {
+        "label": "io",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "io",
+        "description": "io",
+        "detail": "io",
+        "documentation": {}
+    },
+    {
+        "label": "json",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "json",
+        "description": "json",
+        "detail": "json",
+        "documentation": {}
+    },
+    {
+        "label": "redirect_stdout",
+        "importPath": "contextlib",
+        "description": "contextlib",
+        "isExtraImport": true,
+        "detail": "contextlib",
+        "documentation": {}
+    },
+    {
+        "label": "numpy",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "numpy",
+        "description": "numpy",
+        "detail": "numpy",
+        "documentation": {}
+    },
+    {
+        "label": "pandas",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "pandas",
+        "description": "pandas",
+        "detail": "pandas",
+        "documentation": {}
+    },
+    {
+        "label": "Flask",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "jsonify",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "request",
+        "importPath": "flask",
+        "description": "flask",
+        "isExtraImport": true,
+        "detail": "flask",
+        "documentation": {}
+    },
+    {
+        "label": "execute_script",
+        "kind": 2,
+        "importPath": "app",
+        "description": "app",
+        "peekOfCode": "def execute_script():\n    if not request.is_json:\n        return jsonify({\"error\": \"Request must be JSON\"}), 400\n    data = request.get_json()\n    script = data.get(\"script\")\n    if not script or not isinstance(script, str):\n        return jsonify({\"error\": \"Missing or invalid 'script' key in JSON body\"}), 400\n    namespace = {\n        \"__builtins__\": __builtins__,\n        \"np\": np,",
+        "detail": "app",
+        "documentation": {}
+    },
+    {
+        "label": "app",
+        "kind": 5,
+        "importPath": "app",
+        "description": "app",
+        "peekOfCode": "app = Flask(__name__)\n@app.route(\"/execute\", methods=[\"POST\"])\ndef execute_script():\n    if not request.is_json:\n        return jsonify({\"error\": \"Request must be JSON\"}), 400\n    data = request.get_json()\n    script = data.get(\"script\")\n    if not script or not isinstance(script, str):\n        return jsonify({\"error\": \"Missing or invalid 'script' key in JSON body\"}), 400\n    namespace = {",
+        "detail": "app",
+        "documentation": {}
+    }
+]
