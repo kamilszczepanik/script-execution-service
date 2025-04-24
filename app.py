@@ -1,6 +1,5 @@
 import io
 import json
-import sys
 from contextlib import redirect_stdout
 
 from flask import Flask, jsonify, request
@@ -17,37 +16,39 @@ def execute_script():
     script = data.get("script")
 
     if not script or not isinstance(script, str):
-        error_msg = "Missing or invalid 'script' key in JSON body"
-        return jsonify({"error": error_msg}), 400
+        return jsonify({"error": "Missing or invalid 'script' key in JSON body"}), 400
 
-    # Create a new namespace for script execution
-    namespace = {}
-
-    # Capture stdout
     stdout_capture = io.StringIO()
+    namespace = {"__builtins__": __builtins__}
 
     try:
-        # Execute the script and capture stdout
-        with redirect_stdout(stdout_capture):
-            exec(script, namespace)
+        compiled_code = compile(script, "<string>", "exec")
 
-        # Check if main function exists
-        if "main" not in namespace:
+        with redirect_stdout(stdout_capture):
+            exec(compiled_code, namespace)
+
+        if "main" not in namespace or not callable(namespace["main"]):
             return jsonify({"error": "Script must contain a main() function"}), 400
 
-        # Execute main function and get its return value
-        main_result = namespace["main"]()
+        with redirect_stdout(stdout_capture):
+            main_result = namespace["main"]()
 
-        # Verify that the result is JSON serializable
         try:
             json.dumps(main_result)
         except (TypeError, ValueError):
             return jsonify(
-                {"error": "main() function must return a JSON-serializable value"}
+                {
+                    "error": "main() function must return a JSON-serializable value",
+                    "stdout": stdout_capture.getvalue(),
+                }
             ), 400
 
         return jsonify({"result": main_result, "stdout": stdout_capture.getvalue()})
 
+    except SyntaxError as e:
+        return jsonify(
+            {"error": f"Syntax error: {str(e)}", "stdout": stdout_capture.getvalue()}
+        ), 400
     except Exception as e:
         return jsonify(
             {
