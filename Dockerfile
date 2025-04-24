@@ -1,16 +1,28 @@
-FROM python:3.10-slim
+FROM python:3.13-slim AS builder
 
-# Install system dependencies for numpy and pandas
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
+WORKDIR /app
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
+FROM python:3.13-slim
+
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
 COPY . .
 
 EXPOSE 8080
@@ -18,6 +30,7 @@ EXPOSE 8080
 ENV FLASK_APP=app.py 
 ENV FLASK_RUN_HOST=0.0.0.0 
 ENV FLASK_RUN_PORT=8080 
+ENV FLASK_ENV=production
 ENV FLASK_DEBUG=0
 
 CMD ["flask", "run"]

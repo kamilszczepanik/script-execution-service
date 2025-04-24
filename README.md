@@ -6,7 +6,12 @@ A Flask-based API service to execute arbitrary Python scripts safely using nsjai
 
 1.  **Build & run the Docker image:**
     ```bash
-    docker build -t safe-script-runner . ; docker run -p 8080:8080 safe-script-runner
+    docker build -t safe-script-runner . && docker run -p 8080:8080 safe-script-runner
+    ```
+
+    Or to run in detached mode:
+    ```bash
+    docker build -t safe-script-runner . && docker run -d -p 8080:8080 --name script-executor safe-script-runner
     ```
 
 
