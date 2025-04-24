@@ -2,6 +2,8 @@ import io
 import json
 from contextlib import redirect_stdout
 
+import numpy as np
+import pandas as pd
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -18,8 +20,15 @@ def execute_script():
     if not script or not isinstance(script, str):
         return jsonify({"error": "Missing or invalid 'script' key in JSON body"}), 400
 
+    namespace = {
+        "__builtins__": __builtins__,
+        "np": np,
+        "numpy": np,
+        "pd": pd,
+        "pandas": pd,
+    }
+
     stdout_capture = io.StringIO()
-    namespace = {"__builtins__": __builtins__}
 
     try:
         compiled_code = compile(script, "<string>", "exec")
@@ -50,9 +59,13 @@ def execute_script():
             {"error": f"Syntax error: {str(e)}", "stdout": stdout_capture.getvalue()}
         ), 400
     except Exception as e:
+        import traceback
+
+        error_details = traceback.format_exc()
         return jsonify(
             {
                 "error": f"Script execution failed: {str(e)}",
+                "details": error_details,
                 "stdout": stdout_capture.getvalue(),
             }
         ), 400
