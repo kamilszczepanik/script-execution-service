@@ -9,20 +9,82 @@ A Flask-based API service to execute arbitrary Python scripts safely using nsjai
     docker build -t safe-script-runner . ; docker run -p 8080:8080 safe-script-runner
     ```
 
-2.  **Send a request (example):**
-    ```bash
-    curl -X POST -H "Content-Type: application/json" \
-         -d '{"script": "def main():\n    return {\"message\": \"Hello from script!\"}"}' \
-         http://localhost:8080/execute
-    ```
-    --- or ---
-    ```bash
-    curl -X POST -H "Content-Type: application/json" \
-     -d '{"script": "def main():\n    print(\"First line\")\n    print(\"Second line\")\n    return {\"message\": \"Hello from script!\"}"}' \
-     http://localhost:8080/execute
-    ```
 
-    
+## Testing the Improvements
+
+### Successful Cases
+
+1. **Basic script execution:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    return {\"message\": \"Hello from script!\"}"}' \
+        http://localhost:8080/execute
+   ```
+
+2. **Using stdout:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    print(\"Output to stdout\")\n    return {\"message\": \"Hello from script!\"}"}' \
+        http://localhost:8080/execute
+   ```
+
+3. **Using numpy library:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import numpy as np\n    arr = np.array([1, 2, 3])\n    return {\"sum\": int(np.sum(arr)), \"mean\": float(np.mean(arr))}"}' \
+        http://localhost:8080/execute
+   ```
+
+4. **Using pandas library:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import pandas as pd\n    df = pd.DataFrame({\"A\": [1, 2, 3], \"B\": [4, 5, 6]})\n    return {\"columns\": list(df.columns), \"shape\": list(df.shape)}"}' \
+        http://localhost:8080/execute
+   ```
+
+5. **Using os library:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import os\n    return {\"current_dir\": os.getcwd(), \"env_vars\": list(os.environ.keys())[:5]}"}' \
+        http://localhost:8080/execute
+   ```
+
+### Error Cases
+
+1. **Missing main function:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "print(\"This script has no main function\")"}' \
+        http://localhost:8080/execute
+   ```
+
+2. **Syntax error:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main() \n    return {\"message\": \"Missing colon after function definition\"}"}' \
+        http://localhost:8080/execute
+   ```
+
+3. **Non-JSON-serializable return value:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    class CustomClass:\n        pass\n    return CustomClass()"}' \
+        http://localhost:8080/execute
+   ```
+
+4. **Runtime error:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    1/0\n    return {\"message\": \"This won't execute\"}"}' \
+        http://localhost:8080/execute
+   ```
+
+5. **Invalid JSON in request:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{script: "def main(): return {}"' \
+        http://localhost:8080/execute
+   ```
 
 ## Cloud Run Deployment
 
