@@ -25,10 +25,18 @@ def execute_script_in_jail(script):
 import io
 import json
 import sys
+import os
+import numpy as np
+import pandas as pd
 from contextlib import redirect_stdout
 
 # The user script
 {script}
+
+if 'main' not in locals() and 'main' not in globals():
+    error_msg = "Function 'main' is not defined in the script"
+    print(json.dumps({{"error": error_msg}}))
+    sys.exit(1)
 
 # Execute the main function and capture stdout
 stdout_capture = io.StringIO()
@@ -91,6 +99,7 @@ except Exception as e:
 
 @app.route("/execute", methods=["POST"])
 def execute_script():
+    """Execute a Python script in a sandboxed environment."""
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
 
@@ -100,6 +109,9 @@ def execute_script():
     if not script or not isinstance(script, str):
         err_msg = "Missing or invalid 'script' key in JSON body"
         return jsonify({"error": err_msg}), 400
+
+    if "def main" not in script:
+        return jsonify({"error": "Script must contain a 'main' function"}), 400
 
     result = execute_script_in_jail(script)
 
