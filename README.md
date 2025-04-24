@@ -1,96 +1,46 @@
 # Safe Python Script Execution Service
 
-A Flask-based API service to execute arbitrary Python scripts safely using nsjail.
+A secure microservice for executing Python scripts in an isolated environment.
 
 ## Development
 
   **Build & run the Docker image (local mode):**
     ```bash
-    docker build -t safe-script-runner . && docker run -p 8080:8080 safe-script-runner
+    docker compose up --build 
     ```
 
-    Or to run in detached mode:
-    ```bash
-    docker build -t safe-script-runner . && docker run -d -p 8080:8080 --name script-executor safe-script-runner
-    ```
+## Deployment
 
-## Testing the Improvements
-
-### Successful Cases
-
-1. **Basic script execution:**
+1. **Install Google Cloud SDK** (if you don't have it already):
    ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main():\n    return {\"message\": \"Hello from script!\"}"}' \
-        http://localhost:8080/execute
+   curl https://sdk.cloud.google.com | bash
+   gcloud init
    ```
 
-2. **Using stdout:**
+2. **Build and deploy to Cloud Run**:
    ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main():\n    print(\"Output to stdout\")\n    return {\"message\": \"Hello from script!\"}"}' \
-        http://localhost:8080/execute
+   # Set your Google Cloud project ID
+   export PROJECT_ID=$(gcloud config get-value project)
+   
+   # Build and push the container
+   gcloud builds submit --tag gcr.io/$PROJECT_ID/script-execution-service
+   
+   # Deploy to Cloud Run
+   gcloud run deploy script-execution-service \
+     --image gcr.io/$PROJECT_ID/script-execution-service \
+     --platform managed \
+     --allow-unauthenticated \
+     --region us-central1 \
+     --memory 512Mi
    ```
 
-3. **Using numpy library:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main():\n    import numpy as np\n    arr = np.array([1, 2, 3])\n    return {\"sum\": int(np.sum(arr)), \"mean\": float(np.mean(arr))}"}' \
-        http://localhost:8080/execute
-   ```
+### Security Considerations
 
-4. **Using pandas library:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main():\n    import pandas as pd\n    df = pd.DataFrame({\"A\": [1, 2, 3], \"B\": [4, 5, 6]})\n    return {\"columns\": list(df.columns), \"shape\": list(df.shape)}"}' \
-        http://localhost:8080/execute
-   ```
+- The service is configured to allow unauthenticated access. For production, consider adding authentication.
+  
+## API Usage
 
-5. **Using os library:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main():\n    import os\n    return {\"current_dir\": os.getcwd(), \"env_vars\": list(os.environ.keys())[:5]}"}' \
-        http://localhost:8080/execute
-   ```
-
-### Error Cases
-
-1. **Missing main function:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "print(\"This script has no main function\")"}' \
-        http://localhost:8080/execute
-   ```
-
-2. **Syntax error:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main() \n    return {\"message\": \"Missing colon after function definition\"}"}' \
-        http://localhost:8080/execute
-   ```
-
-3. **Non-JSON-serializable return value:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main():\n    class CustomClass:\n        pass\n    return CustomClass()"}' \
-        http://localhost:8080/execute
-   ```
-
-4. **Runtime error:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{"script": "def main():\n    1/0\n    return {\"message\": \"This won't execute\"}"}' \
-        http://localhost:8080/execute
-   ```
-
-5. **Invalid JSON in request:**
-   ```bash
-   curl -X POST -H "Content-Type: application/json" \
-        -d '{script: "def main(): return {}"' \
-        http://localhost:8080/execute
-   ```
-
-## Live Service
+### Live Service
 
 The service is deployed at: https://script-execution-service-94204096560.us-west2.run.app/
 
@@ -131,36 +81,78 @@ You can test it using the following curl commands:
         https://script-execution-service-94204096560.us-west2.run.app/execute
    ```
 
-## Cloud Run Deployment
+### Locally
 
-1. **Install Google Cloud SDK** (if you don't have it already):
+#### Successful Cases
+
+1. **Basic script execution:**
    ```bash
-   curl https://sdk.cloud.google.com | bash
-   gcloud init
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    return {\"message\": \"Hello from script!\"}"}' \
+        http://localhost:8080/execute
    ```
 
-2. **Build and deploy to Cloud Run**:
+2. **Using stdout:**
    ```bash
-   # Set your Google Cloud project ID
-   export PROJECT_ID=$(gcloud config get-value project)
-   
-   # Build and push the container
-   gcloud builds submit --tag gcr.io/$PROJECT_ID/script-execution-service
-   
-   # Deploy to Cloud Run
-   gcloud run deploy script-execution-service \
-     --image gcr.io/$PROJECT_ID/script-execution-service \
-     --platform managed \
-     --allow-unauthenticated \
-     --region us-central1 \
-     --memory 512Mi
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    print(\"Output to stdout\")\n    return {\"message\": \"Hello from script!\"}"}' \
+        http://localhost:8080/execute
    ```
 
-## Security Considerations
+3. **Using numpy library:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import numpy as np\n    arr = np.array([1, 2, 3])\n    return {\"sum\": int(np.sum(arr)), \"mean\": float(np.mean(arr))}"}' \
+        http://localhost:8080/execute
+   ```
 
-- The service is configured to allow unauthenticated access. For production, consider adding authentication.
+4. **Using pandas library:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import pandas as pd\n    df = pd.DataFrame({\"A\": [1, 2, 3], \"B\": [4, 5, 6]})\n    return {\"columns\": list(df.columns), \"shape\": list(df.shape)}"}' \
+        http://localhost:8080/execute
+   ```
 
-## TODO
+5. **Using os library:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    import os\n    return {\"current_dir\": os.getcwd(), \"env_vars\": list(os.environ.keys())[:5]}"}' \
+        http://localhost:8080/execute
+   ```
 
-- Implement actual script execution using nsjail.
-- Configure nsjail for security.
+#### Error Cases
+
+1. **Missing main function:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "print(\"This script has no main function\")"}' \
+        http://localhost:8080/execute
+   ```
+
+2. **Syntax error:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main() \n    return {\"message\": \"Missing colon after function definition\"}"}' \
+        http://localhost:8080/execute
+   ```
+
+3. **Non-JSON-serializable return value:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    class CustomClass:\n        pass\n    return CustomClass()"}' \
+        http://localhost:8080/execute
+   ```
+
+4. **Runtime error:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"script": "def main():\n    1/0\n    return {\"message\": \"This won't execute\"}"}' \
+        http://localhost:8080/execute
+   ```
+
+5. **Invalid JSON in request:**
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{script: "def main(): return {}"' \
+        http://localhost:8080/execute
+   ```
