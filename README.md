@@ -8,7 +8,8 @@ A secure microservice for executing Python scripts in an isolated environment.
     ```bash
     docker compose up --build 
     ```
-    
+
+
 ## API Usage
 
 ### Live Service
@@ -94,3 +95,37 @@ You can test it using the following curl commands:
         -d '{script: "def main(): return {}"' \
         http://localhost:8080/execute
    ```
+
+
+## Deployment to Google Cloud Run
+
+1. **Install Google Cloud SDK** (if you don't have it already):
+   ```bash
+   curl https://sdk.cloud.google.com | bash
+   gcloud init
+   ```
+
+2. **Use the deployment script**:
+   ```bash
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+   Or deploy manually:
+   ```bash
+   # Set your Google Cloud project ID
+   export PROJECT_ID=$(gcloud config get-value project)
+   
+   # Build and push the container
+   gcloud builds submit --tag gcr.io/$PROJECT_ID/safe-script-execution-service
+   
+   # Deploy to Cloud Run
+   gcloud run deploy safe-script-execution-service \
+     --image gcr.io/$PROJECT_ID/safe-script-execution-service \
+     --platform managed \
+     --allow-unauthenticated \
+     --region us-west2 \
+     --memory 512Mi
+   ```
+
+3. **Note on sandbox permissions**: Google Cloud Run might restrict some of the privileged operations required by nsjail. You might need to adjust your nsjail configuration or use a less restrictive platform.
